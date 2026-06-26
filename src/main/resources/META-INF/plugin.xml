@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>io.github.zhoutianling.ai-commit-message</id>
     <name>AI Commit Message</name>
-    <vendor email="tianling.zhou@mob.cool" url="https://github.com/zhoutianling">zhoutianling</vendor>
+    <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
     <version>0.2.0</version>
     <description>
         AI Commit Message is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.

@@ -49,4 +49,4 @@ Users control the configured API endpoint and API key. Data handling by that ext
 
 ## Contact
 
-For privacy questions, contact: tianling.zhou@mob.cool
+For privacy questions, contact: 1396628021@qq.com
