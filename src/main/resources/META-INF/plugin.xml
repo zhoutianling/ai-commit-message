@@ -1,0 +1,40 @@
+<idea-plugin>
+    <id>io.github.zhoutl.ai-commit-message</id>
+    <name>AI Commit Message</name>
+    <vendor email="tianling.zhou@mob.cool" url="https://github.com/zhoutl">zhoutl</vendor>
+    <version>0.2.0</version>
+    <description>
+        AI Commit Message is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
+        It adds a single action to the Commit panel and uses the user's own OpenAI-compatible API configuration,
+        with DeepSeek defaults. The plugin does not require login, does not create a tool window, and does not
+        make network requests until the user explicitly clicks an action.
+    </description>
+    <change-notes>
+        Public release preparation: DeepSeek defaults, configuration test, local API key storage, explicit data-transfer consent,
+        sensitive-file filtering, and lightweight Commit panel integration.
+    </change-notes>
+
+    <idea-version since-build="261" until-build="263.*"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
+    <depends optional="true">Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable
+            id="io.github.zhoutl.ai-commit-message.settings"
+            displayName="AI Commit Message"
+            instance="com.local.aicommit.AiCommitSettingsConfigurable"/>
+        <applicationService serviceImplementation="com.local.aicommit.AiCommitSettingsState"/>
+    </extensions>
+
+    <actions>
+        <action
+            id="io.github.zhoutl.ai-commit-message.GenerateCommitMessageAction"
+            class="com.local.aicommit.GenerateCommitMessageAction"
+            text="AI Generate Commit Message"
+            description="Generate a commit message from the selected Git changes">
+            <add-to-group group-id="Vcs.MessageActionGroup" anchor="first"/>
+        </action>
+    </actions>
+</idea-plugin>
