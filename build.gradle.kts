@@ -14,7 +14,7 @@ java {
 
 intellijPlatform {
     pluginConfiguration {
-        id = "io.github.zhoutl.ai-commit-message"
+        id = "io.github.zhoutianling.ai-commit-message"
         name = "AI Commit Message Generator"
         version = project.version.toString()
         ideaVersion {

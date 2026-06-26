@@ -40,4 +40,4 @@ MIT
 
 ## Privacy Policy URL
 
-https://github.com/zhoutl/ai-commit-message/blob/main/PRIVACY.md
+https://github.com/zhoutianling/ai-commit-message/blob/main/PRIVACY.md
