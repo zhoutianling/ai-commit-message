@@ -1,6 +1,6 @@
 # Privacy Policy
 
-AI Commit Message is a local JetBrains IDE plugin. It does not require an account, does not operate a backend service, and does not collect analytics or telemetry.
+AI Git Commit Writer is a local JetBrains IDE plugin. It does not require an account, does not operate a backend service, and does not collect analytics or telemetry.
 
 ## Data Stored Locally
 

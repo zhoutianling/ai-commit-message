@@ -1,10 +1,10 @@
 <idea-plugin>
     <id>io.github.zhoutianling.ai-commit-message</id>
-    <name>AI Commit Message</name>
+    <name>AI Git Commit Writer</name>
     <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
     <version>0.2.0</version>
     <description>
-        AI Commit Message is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
+        AI Git Commit Writer is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
         It adds a single action to the Commit panel and uses the user's own OpenAI-compatible API configuration,
         with DeepSeek defaults. The plugin does not require login, does not create a tool window, and does not
         make network requests until the user explicitly clicks an action.
@@ -18,7 +18,6 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
-    <depends optional="true">Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationConfigurable

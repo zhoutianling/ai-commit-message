@@ -2,7 +2,7 @@
 
 ## Name
 
-AI Commit Message
+AI Git Commit Writer
 
 ## Short Description
 
@@ -10,7 +10,7 @@ Generate Git commit messages from selected changes using your own OpenAI-compati
 
 ## Description
 
-AI Commit Message is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
+AI Git Commit Writer is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
 
 It adds a single action to the Commit panel: `AI Generate Commit Message`.
 

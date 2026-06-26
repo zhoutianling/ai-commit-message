@@ -1,6 +1,6 @@
-# AI Commit Message
+# AI Git Commit Writer
 
-AI Commit Message is a lightweight JetBrains IDE plugin that generates Git commit messages from selected changes in the Commit panel.
+AI Git Commit Writer is a lightweight JetBrains IDE plugin that generates Git commit messages from selected changes in the Commit panel.
 
 It is intentionally small:
 
