@@ -14,6 +14,8 @@ final class PromptBuilder {
 
     static String userPrompt(Project project, AiCommitSettingsState.StateData settings,
                              List<String> codeDiffs, List<String> recentCommitMessages) {
+        int fileCount = codeDiffs.size();
+
         StringBuilder sb = new StringBuilder();
         sb.append("Project: ").append(project.getName()).append("\n");
         sb.append("Language: ").append(settings.language).append("\n");
@@ -30,13 +32,21 @@ final class PromptBuilder {
         }
 
         sb.append("\nRules:\n");
-        sb.append("- Prefer one concise subject line.\n");
         sb.append("- For Conventional Commit, use exactly: type(scope): summary\n");
         sb.append("- Allowed types: feat, fix, refactor, perf, docs, test, build, ci, chore, style, revert.\n");
         sb.append("- Use ").append(settings.language).append(" for the summary unless the diff clearly requires technical English.\n");
-        sb.append("- Add a body only when the change is too broad for one line.\n");
         sb.append("- Do not include secrets or quote sensitive values.\n");
         sb.append("- Match the style and tone of recent commit messages shown above.\n");
+        sb.append("- ").append(fileCount).append(" file(s) changed. ");
+
+        if (fileCount <= 2) {
+            sb.append("Describe the changes concisely in one line.\n");
+        } else {
+            sb.append("If the changes span multiple concerns, use a multi-line commit body: ");
+            sb.append("one subject line summarizing the overall change, followed by a blank line, ");
+            sb.append("then one bullet (-) per distinct logical change. ");
+            sb.append("Group related files together under a common change description.\n");
+        }
 
         sb.append("\nCode changes:\n");
         String diffs = codeDiffs.stream()

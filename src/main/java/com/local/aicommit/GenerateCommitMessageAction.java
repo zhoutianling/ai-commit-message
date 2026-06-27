@@ -28,12 +28,17 @@ public final class GenerateCommitMessageAction extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent event) {
         Project project = event.getData(CommonDataKeys.PROJECT);
         CommitMessageI commitMessage = event.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL);
+
+        if (project == null || commitMessage == null) {
+            return;
+        }
+
         Change[] changes = event.getData(VcsDataKeys.SELECTED_CHANGES);
         if (changes == null || changes.length == 0) {
             changes = event.getData(VcsDataKeys.CHANGES);
         }
-
-        if (project == null || commitMessage == null) {
+        if (changes == null || changes.length == 0) {
+            Messages.showInfoMessage(project, "No changes selected for commit.", "AI Commit Message");
             return;
         }
 
@@ -78,16 +83,23 @@ public final class GenerateCommitMessageAction extends AnAction {
         new Task.Backgroundable(project, "Generating AI commit message", true) {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
+                List<String> diffs = List.of();
+                List<String> recentMessages = List.of();
                 try {
                     indicator.setText("Collecting Git changes...");
-                    List<String> diffs = DiffCollector.collectDiffs(project, capturedChanges);
+                    diffs = DiffCollector.collectDiffs(project, capturedChanges);
                     if (diffs.isEmpty()) {
-                        showInfo(project, "No Git changes were found.");
+                        showInfo(project, "No parsable Git changes were found.");
                         return;
                     }
 
                     indicator.setText("Reading recent commits...");
-                    List<String> recentMessages = GitHistoryCollector.collectRecentCommitMessages(project);
+                    try {
+                        recentMessages = GitHistoryCollector.collectRecentCommitMessages(project);
+                    } catch (Exception e) {
+                        // non-fatal: proceed without history context
+                        recentMessages = List.of();
+                    }
 
                     indicator.setText("Requesting AI commit message...");
                     OpenAiCompatibleClient client = new OpenAiCompatibleClient();
@@ -102,7 +114,8 @@ public final class GenerateCommitMessageAction extends AnAction {
                     Thread.currentThread().interrupt();
                     showError(project, "Generation was interrupted.");
                 } catch (Exception ex) {
-                    showError(project, ex.getMessage() == null ? ex.toString() : ex.getMessage());
+                    String msg = ex.getMessage();
+                    showError(project, msg != null ? msg : ex.getClass().getSimpleName());
                 }
             }
         }.queue();

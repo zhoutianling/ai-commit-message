@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- Fix: catch RuntimeException from IdeaTextPatchBuilder to prevent silent failures when clicking the generate button.
+- Fix: multi-file changes now produce multi-line commit bodies with bullet points per logical change (instead of always a single line).
+- Harden: empty diff collection shows a proper info message instead of silently returning.
+- Harden: Git history collection failure no longer blocks generation (falls back gracefully).
+
 ## 0.3.0
 
 - Generate unified diffs via `IdeaTextPatchBuilder` + `UnifiedDiffWriter` (aligning diff quality with Qoder CN).

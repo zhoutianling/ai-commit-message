@@ -34,6 +34,7 @@ final class DiffCollector {
 
         List<String> result = new ArrayList<>();
         AtomicLong totalLength = new AtomicLong(0L);
+        Path basePath = Path.of(project.getBasePath());
 
         for (Change change : changeList) {
             if (result.size() >= MAX_FILE || totalLength.get() >= MAX_PATCH_LEN) break;
@@ -44,7 +45,7 @@ final class DiffCollector {
                 List<FilePatch> patches = IdeaTextPatchBuilder.buildPatch(
                     project,
                     Collections.singletonList(change),
-                    Path.of(project.getBasePath()),
+                    basePath,
                     false
                 );
 
@@ -74,6 +75,9 @@ final class DiffCollector {
                 if (diffContent != null && !diffContent.isBlank()) {
                     result.add(diffContent);
                 }
+            } catch (RuntimeException e) {
+                // IdeaTextPatchBuilder / UnifiedDiffWriter may throw for edge cases
+                tryNewFileFallback(change, result, totalLength);
             } catch (IOException | VcsException e) {
                 tryNewFileFallback(change, result, totalLength);
             }
