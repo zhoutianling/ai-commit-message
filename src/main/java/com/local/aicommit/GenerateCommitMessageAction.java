@@ -4,7 +4,6 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
@@ -14,6 +13,8 @@ import com.intellij.openapi.vcs.CommitMessageI;
 import com.intellij.openapi.vcs.VcsDataKeys;
 import com.intellij.openapi.vcs.changes.Change;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 public final class GenerateCommitMessageAction extends AnAction {
     @Override
@@ -27,7 +28,6 @@ public final class GenerateCommitMessageAction extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent event) {
         Project project = event.getData(CommonDataKeys.PROJECT);
         CommitMessageI commitMessage = event.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL);
-        Document messageDocument = event.getData(VcsDataKeys.COMMIT_MESSAGE_DOCUMENT);
         Change[] changes = event.getData(VcsDataKeys.SELECTED_CHANGES);
         if (changes == null || changes.length == 0) {
             changes = event.getData(VcsDataKeys.CHANGES);
@@ -36,6 +36,10 @@ public final class GenerateCommitMessageAction extends AnAction {
         if (project == null || commitMessage == null) {
             return;
         }
+
+        AiCommitSettingsState settings = AiCommitSettingsState.getInstance();
+        settings.normalize();
+        AiCommitSettingsState.StateData state = settings.getState();
 
         String apiKey = ApiKeyStore.getApiKey();
         if (apiKey.isBlank()) {
@@ -53,9 +57,6 @@ public final class GenerateCommitMessageAction extends AnAction {
             return;
         }
 
-        AiCommitSettingsState settings = AiCommitSettingsState.getInstance();
-        settings.normalize();
-        AiCommitSettingsState.StateData state = settings.getState();
         if (!state.allowSendingChanges) {
             int answer = Messages.showYesNoDialog(
                 project,
@@ -70,29 +71,33 @@ public final class GenerateCommitMessageAction extends AnAction {
             }
             return;
         }
-        Change[] capturedChanges = changes;
-        String existingMessage = messageDocument == null ? "" : messageDocument.getText().trim();
+
+        final String finalApiKey = apiKey;
+        final Change[] capturedChanges = changes;
 
         new Task.Backgroundable(project, "Generating AI commit message", true) {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
                 try {
                     indicator.setText("Collecting Git changes...");
-                    String diffSummary = DiffCollector.collect(project, capturedChanges, state.maxDiffCharacters);
-                    if (diffSummary.isBlank()) {
+                    List<String> diffs = DiffCollector.collectDiffs(project, capturedChanges);
+                    if (diffs.isEmpty()) {
                         showInfo(project, "No Git changes were found.");
                         return;
                     }
+
+                    indicator.setText("Reading recent commits...");
+                    List<String> recentMessages = GitHistoryCollector.collectRecentCommitMessages(project);
 
                     indicator.setText("Requesting AI commit message...");
                     OpenAiCompatibleClient client = new OpenAiCompatibleClient();
                     String generated = client.generate(
                         state,
-                        apiKey,
+                        finalApiKey,
                         PromptBuilder.systemPrompt(),
-                        PromptBuilder.userPrompt(project, state, diffSummary)
+                        PromptBuilder.userPrompt(project, state, diffs, recentMessages)
                     );
-                    applyGeneratedMessage(project, commitMessage, existingMessage, generated);
+                    applyGeneratedMessage(project, commitMessage, generated);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     showError(project, "Generation was interrupted.");
@@ -103,30 +108,13 @@ public final class GenerateCommitMessageAction extends AnAction {
         }.queue();
     }
 
-    private static void applyGeneratedMessage(Project project, CommitMessageI commitMessage, String existingMessage, String generated) {
+    private static void applyGeneratedMessage(Project project, CommitMessageI commitMessage, String generated) {
         ApplicationManager.getApplication().invokeLater(() -> {
             if (generated == null || generated.isBlank()) {
                 Messages.showWarningDialog(project, "AI returned an empty commit message.", "AI Commit Message");
                 return;
             }
-            if (existingMessage == null || existingMessage.isBlank()) {
-                commitMessage.setCommitMessage(generated.trim());
-                return;
-            }
-            int answer = Messages.showYesNoCancelDialog(
-                project,
-                "Commit message already has content. Replace it with the generated message?",
-                "AI Commit Message",
-                "Replace",
-                "Append",
-                "Cancel",
-                Messages.getQuestionIcon()
-            );
-            if (answer == Messages.YES) {
-                commitMessage.setCommitMessage(generated.trim());
-            } else if (answer == Messages.NO) {
-                commitMessage.setCommitMessage(existingMessage + "\n\n" + generated.trim());
-            }
+            commitMessage.setCommitMessage(generated.trim());
         });
     }
 

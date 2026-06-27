@@ -17,6 +17,9 @@ The plugin uses an OpenAI-compatible API configured by the user. DeepSeek is the
 
 - Adds `AI Generate Commit Message` to the Git Commit panel.
 - Generates concise Conventional Commit style messages in Chinese by default.
+- **Unified diff quality**: uses JetBrains `IdeaTextPatchBuilder` + `UnifiedDiffWriter` (same approach as Qoder CN) for high-quality diff context.
+- **Commit history context**: reads the 3 most recent commit messages and passes them to the AI for style matching.
+- **Direct replace**: always overwrites the commit message without confirmation prompts.
 - Supports any OpenAI-compatible endpoint through `Base URL`, `API Key`, and `Model`.
 - Stores API keys locally with JetBrains PasswordSafe.
 - Skips sensitive files such as `.env`, private keys, certificates, keystores, and binary files.

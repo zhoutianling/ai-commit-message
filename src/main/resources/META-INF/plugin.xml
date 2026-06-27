@@ -2,7 +2,7 @@
     <id>io.github.zhoutianling.ai-commit-message</id>
     <name>AI Git Commit Writer</name>
     <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <description>
         AI Git Commit Writer is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
         It adds a single action to the Commit panel and uses the user's own OpenAI-compatible API configuration,
@@ -10,8 +10,8 @@
         make network requests until the user explicitly clicks an action.
     </description>
     <change-notes>
-        Public release preparation: DeepSeek defaults, configuration test, local API key storage, explicit data-transfer consent,
-        sensitive-file filtering, and lightweight Commit panel integration.
+        v0.3.0: Generates unified diffs via IdeaTextPatchBuilder (aligning with Qoder CN). Includes recent commit
+        messages as style context. Always directly replaces the commit message without a confirmation prompt.
     </change-notes>
 
     <idea-version since-build="261" until-build="263.*"/>

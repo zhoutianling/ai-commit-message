@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.local"
-version = "0.2.0"
+version = "0.3.0"
 
 java {
     toolchain {
@@ -15,7 +15,7 @@ java {
 intellijPlatform {
     pluginConfiguration {
         id = "io.github.zhoutianling.ai-commit-message"
-        name = "AI Commit Message Generator"
+        name = "AI Git Commit Writer"
         version = project.version.toString()
         ideaVersion {
             sinceBuild = "261"

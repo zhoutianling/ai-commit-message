@@ -1,243 +1,150 @@
 package com.local.aicommit;
 
+import com.intellij.openapi.diff.impl.patch.*;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vcs.VcsDataKeys;
+import com.intellij.openapi.vcs.VcsException;
 import com.intellij.openapi.vcs.changes.Change;
 import com.intellij.openapi.vcs.changes.ContentRevision;
-import com.intellij.openapi.vcs.changes.ChangeListManager;
-import com.intellij.openapi.vfs.VirtualFile;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
+
+import com.intellij.project.ProjectKt;
 
 final class DiffCollector {
-    private static final String[] SENSITIVE_NAMES = {
-        ".env", ".env.local", ".env.production", "id_rsa", "id_dsa", "known_hosts"
-    };
+    private static final int MAX_FILE = 50;
+    private static final long MAX_PATCH_LEN = 70000L;
+    private static final int MAX_SINGLE_LINE_LEN = 300;
 
-    private DiffCollector() {
-    }
+    private DiffCollector() {}
 
-    static String collect(Project project, Change[] actionChanges, int maxCharacters) {
-        List<Change> changes = new ArrayList<>();
-        if (actionChanges != null && actionChanges.length > 0) {
-            for (Change change : actionChanges) {
-                if (change != null) {
-                    changes.add(change);
+    static List<String> collectDiffs(Project project, Change[] changes) {
+        if (project == null || project.getBasePath() == null || changes == null || changes.length == 0) {
+            return List.of();
+        }
+
+        List<Change> changeList = new ArrayList<>();
+        for (Change c : changes) {
+            if (c != null) changeList.add(c);
+        }
+        if (changeList.isEmpty()) return List.of();
+
+        List<String> result = new ArrayList<>();
+        AtomicLong totalLength = new AtomicLong(0L);
+
+        for (Change change : changeList) {
+            if (result.size() >= MAX_FILE || totalLength.get() >= MAX_PATCH_LEN) break;
+
+            try {
+                if (!isValidChange(change)) continue;
+
+                List<FilePatch> patches = IdeaTextPatchBuilder.buildPatch(
+                    project,
+                    Collections.singletonList(change),
+                    Path.of(project.getBasePath()),
+                    false
+                );
+
+                if (patches == null || patches.isEmpty()) {
+                    String label = emptyPatchLabel(change);
+                    if (label != null) result.add(label);
+                    continue;
                 }
-            }
-        }
-        if (changes.isEmpty()) {
-            Collection<Change> allChanges = ChangeListManager.getInstance(project).getAllChanges();
-            changes.addAll(allChanges);
-        }
-        if (changes.isEmpty()) {
-            return "";
-        }
 
-        Map<String, ChangeSnapshot> snapshots = new LinkedHashMap<>();
-        for (Change change : changes) {
-            ChangeSnapshot snapshot = snapshot(project, change);
-            if (snapshot != null) {
-                snapshots.put(snapshot.path + ":" + snapshot.status, snapshot);
-            }
-        }
+                if (isPatchTooLarge(patches, totalLength)) continue;
 
-        StringBuilder builder = new StringBuilder();
-        builder.append("Changed files:\n");
-        for (ChangeSnapshot snapshot : snapshots.values()) {
-            builder.append("- ")
-                .append(snapshot.status)
-                .append(" ")
-                .append(snapshot.path);
-            if (snapshot.sensitive) {
-                builder.append(" [content skipped: sensitive]");
-            } else if (snapshot.binary) {
-                builder.append(" [content skipped: binary]");
-            }
-            builder.append('\n');
-        }
-        builder.append("\nDiff details:\n");
-        for (ChangeSnapshot snapshot : snapshots.values()) {
-            builder.append("\n--- ").append(snapshot.status).append(" ").append(snapshot.path).append('\n');
-            if (snapshot.sensitive) {
-                builder.append("[Sensitive file content skipped]\n");
-            } else if (snapshot.binary) {
-                builder.append("[Binary file content skipped]\n");
-            } else if (snapshot.diff == null || snapshot.diff.isBlank()) {
-                builder.append("[No textual diff available]\n");
-            } else {
-                builder.append(snapshot.diff).append('\n');
-            }
-            if (builder.length() > maxCharacters) {
-                builder.setLength(maxCharacters);
-                builder.append("\n[Diff truncated at ").append(maxCharacters).append(" characters]\n");
-                break;
+                StringWriter writer = new StringWriter();
+                try {
+                    UnifiedDiffWriter.write(
+                        project,
+                        ProjectKt.getStateStore(project).getProjectBasePath(),
+                        patches,
+                        writer,
+                        "\n",
+                        null,
+                        List.of()
+                    );
+                } finally {
+                    writer.close();
+                }
+                String diffContent = writer.toString();
+                if (diffContent != null && !diffContent.isBlank()) {
+                    result.add(diffContent);
+                }
+            } catch (IOException | VcsException e) {
+                tryNewFileFallback(change, result, totalLength);
             }
         }
-        return builder.toString();
+        return result;
     }
 
-    private static ChangeSnapshot snapshot(Project project, Change change) {
-        ContentRevision before = change.getBeforeRevision();
+    private static boolean isValidChange(Change change) {
+        ContentRevision rev = change.getAfterRevision() != null ? change.getAfterRevision() : change.getBeforeRevision();
+        if (rev == null || rev.getFile().getFileType().isBinary()) return false;
+        try {
+            String content = rev.getContent();
+            if (content == null || content.isBlank()) return true;
+            return !isSingleLineLargeFile(content);
+        } catch (VcsException e) {
+            return true;
+        }
+    }
+
+    private static boolean isSingleLineLargeFile(String content) {
+        return !content.contains("\n") && !content.contains("\r") && content.length() > MAX_SINGLE_LINE_LEN;
+    }
+
+    private static boolean isPatchTooLarge(List<FilePatch> patches, AtomicLong totalLength) {
+        long len = 0;
+        for (FilePatch patch : patches) {
+            if (!(patch instanceof TextFilePatch tp)) continue;
+            for (PatchHunk hunk : tp.getHunks()) {
+                len += hunk.getText() != null ? hunk.getText().length() : 0;
+            }
+        }
+        if (totalLength.get() + len > MAX_PATCH_LEN) return true;
+        totalLength.addAndGet(len);
+        return false;
+    }
+
+    private static String emptyPatchLabel(Change change) {
+        String name = null;
+        if (change.getAfterRevision() != null) {
+            name = change.getAfterRevision().getFile().getName();
+        } else if (change.getBeforeRevision() != null) {
+            name = change.getBeforeRevision().getFile().getName();
+        }
+        return (name != null && !name.isBlank()) ? name + " change mod" : null;
+    }
+
+    private static void tryNewFileFallback(Change change, List<String> result, AtomicLong totalLength) {
         ContentRevision after = change.getAfterRevision();
-        String path = pathOf(after != null ? after : before);
-        if (path == null || path.isBlank()) {
-            VirtualFile vf = change.getVirtualFile();
-            path = vf == null ? "<unknown>" : vf.getPath();
-        }
-        String relativePath = relativize(project, path);
-        boolean sensitive = isSensitive(relativePath);
-        boolean binary = isBinary(relativePath);
-        String diff = "";
-        if (!sensitive && !binary) {
-            diff = buildTextDiff(before, after);
-        }
-        return new ChangeSnapshot(relativePath, change.getType().name(), sensitive, binary, diff);
-    }
-
-    private static String buildTextDiff(ContentRevision before, ContentRevision after) {
-        String oldContent = safeContent(before);
-        String newContent = safeContent(after);
-        if (oldContent == null && newContent == null) {
-            return "";
-        }
-        if (oldContent == null) {
-            return limitedContent("New file content", newContent);
-        }
-        if (newContent == null) {
-            return limitedContent("Deleted file content", oldContent);
-        }
-        if (oldContent.equals(newContent)) {
-            return "";
-        }
-        return simpleLineDiff(oldContent, newContent, 220);
-    }
-
-    private static String simpleLineDiff(String oldContent, String newContent, int maxChangedLines) {
-        String[] oldLines = oldContent.split("\\R", -1);
-        String[] newLines = newContent.split("\\R", -1);
-        int commonPrefix = 0;
-        int maxPrefix = Math.min(oldLines.length, newLines.length);
-        while (commonPrefix < maxPrefix && oldLines[commonPrefix].equals(newLines[commonPrefix])) {
-            commonPrefix++;
-        }
-        int oldSuffix = oldLines.length - 1;
-        int newSuffix = newLines.length - 1;
-        while (oldSuffix >= commonPrefix && newSuffix >= commonPrefix && oldLines[oldSuffix].equals(newLines[newSuffix])) {
-            oldSuffix--;
-            newSuffix--;
-        }
-
-        StringBuilder builder = new StringBuilder();
-        int contextStart = Math.max(0, commonPrefix - 3);
-        int oldContextEnd = Math.min(oldLines.length - 1, oldSuffix + 3);
-        int newContextEnd = Math.min(newLines.length - 1, newSuffix + 3);
-        builder.append("@@ simplified textual diff @@\n");
-        int emitted = 0;
-        for (int i = contextStart; i < commonPrefix && i < oldLines.length; i++) {
-            builder.append(' ').append(oldLines[i]).append('\n');
-        }
-        for (int i = commonPrefix; i <= oldSuffix && i < oldLines.length; i++) {
-            builder.append('-').append(oldLines[i]).append('\n');
-            emitted++;
-            if (emitted >= maxChangedLines) {
-                builder.append("[removed lines truncated]\n");
-                break;
-            }
-        }
-        emitted = 0;
-        for (int i = commonPrefix; i <= newSuffix && i < newLines.length; i++) {
-            builder.append('+').append(newLines[i]).append('\n');
-            emitted++;
-            if (emitted >= maxChangedLines) {
-                builder.append("[added lines truncated]\n");
-                break;
-            }
-        }
-        int contextEnd = Math.max(oldContextEnd, newContextEnd);
-        for (int i = Math.max(oldSuffix + 1, commonPrefix); i <= contextEnd && i < oldLines.length; i++) {
-            builder.append(' ').append(oldLines[i]).append('\n');
-        }
-        return builder.toString();
-    }
-
-    private static String limitedContent(String label, String content) {
-        if (content == null) {
-            return "";
-        }
-        int limit = Math.min(content.length(), 12000);
-        String suffix = content.length() > limit ? "\n[content truncated]" : "";
-        return label + ":\n" + content.substring(0, limit) + suffix;
-    }
-
-    private static String safeContent(ContentRevision revision) {
-        if (revision == null) {
-            return null;
-        }
+        if (after == null) return;
         try {
-            return revision.getContent();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static String pathOf(ContentRevision revision) {
-        return revision == null || revision.getFile() == null ? null : revision.getFile().getPath();
-    }
-
-    private static String relativize(Project project, String path) {
-        String base = project.getBasePath();
-        if (base == null) {
-            return path;
-        }
-        try {
-            String normalizedBase = new File(base).getCanonicalPath();
-            String normalizedPath = new File(path).getCanonicalPath();
-            if (normalizedPath.startsWith(normalizedBase + File.separator)) {
-                return normalizedPath.substring(normalizedBase.length() + 1).replace('\\', '/');
+            String content = after.getContent();
+            String path = after.getFile().getPath();
+            if (content == null || content.isBlank()) {
+                result.add("new file: " + after.getFile().getName());
+                return;
             }
-        } catch (Exception ignored) {
-        }
-        return path.replace('\\', '/');
-    }
-
-    private static boolean isSensitive(String path) {
-        String lower = path.toLowerCase(Locale.ROOT);
-        for (String name : SENSITIVE_NAMES) {
-            if (lower.endsWith("/" + name) || lower.equals(name)) {
-                return true;
+            if (content.length() > MAX_PATCH_LEN) {
+                content = content.substring(0, (int) MAX_PATCH_LEN);
             }
+            String[] lines = content.split("\\R", -1);
+            StringBuilder sb = new StringBuilder();
+            sb.append("--- /dev/null\n");
+            sb.append("+++ b/").append(path).append("\n");
+            sb.append("@@ -0,0 +1,").append(lines.length).append(" @@\n");
+            for (String line : lines) {
+                sb.append("+").append(line).append("\n");
+            }
+            result.add(sb.toString());
+            totalLength.addAndGet(sb.length());
+        } catch (VcsException e) {
+            result.add(after.getFile().getName() + " change mod");
         }
-        return lower.endsWith(".pem")
-            || lower.endsWith(".key")
-            || lower.endsWith(".p12")
-            || lower.endsWith(".jks")
-            || lower.endsWith(".keystore")
-            || lower.contains("/secrets/")
-            || lower.contains("/.ssh/");
-    }
-
-    private static boolean isBinary(String path) {
-        String lower = path.toLowerCase(Locale.ROOT);
-        return lower.endsWith(".png")
-            || lower.endsWith(".jpg")
-            || lower.endsWith(".jpeg")
-            || lower.endsWith(".gif")
-            || lower.endsWith(".webp")
-            || lower.endsWith(".ico")
-            || lower.endsWith(".pdf")
-            || lower.endsWith(".zip")
-            || lower.endsWith(".jar")
-            || lower.endsWith(".apk")
-            || lower.endsWith(".aab")
-            || lower.endsWith(".so")
-            || lower.endsWith(".dll")
-            || lower.endsWith(".exe");
     }
 }

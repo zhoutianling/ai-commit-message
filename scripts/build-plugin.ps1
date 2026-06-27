@@ -1,6 +1,6 @@
 param(
   [string]$AndroidStudioHome = "C:\Program Files\Android\Android Studio",
-  [string]$OutputDir = "C:\Users\Admin\Documents\Codex\2026-06-26\and\outputs"
+  [string]$OutputDir = "C:\Github\ai-commit-message\outputs"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,12 +10,13 @@ $BuildDir = Join-Path $ProjectRoot "build"
 $ClassesDir = Join-Path $BuildDir "classes"
 $PackageDir = Join-Path $BuildDir "package\ai-commit-message-plugin"
 $JarPath = Join-Path $PackageDir "lib\ai-commit-message-plugin.jar"
-$ZipPath = Join-Path $OutputDir "ai-commit-message-plugin-0.2.0.zip"
+$ZipPath = Join-Path $OutputDir "ai-commit-message-plugin-0.3.0.zip"
 
 Remove-Item -LiteralPath $BuildDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $ClassesDir, (Split-Path -Parent $JarPath), $OutputDir | Out-Null
 
-$LibJars = Get-ChildItem -Path (Join-Path $AndroidStudioHome "lib") -Filter "*.jar" | ForEach-Object { $_.FullName }
+$LibJars = @((Get-ChildItem -Path (Join-Path $AndroidStudioHome "lib") -Filter "*.jar").FullName)
+$LibJars += @((Get-ChildItem -Path (Join-Path $AndroidStudioHome "plugins\vcs-git\lib") -Filter "*.jar").FullName)
 $ClassPath = ($LibJars -join ";")
 $Sources = Get-ChildItem -Path (Join-Path $ProjectRoot "src\main\java") -Recurse -Filter "*.java" | ForEach-Object { $_.FullName }
 
