@@ -14,9 +14,6 @@ public final class AiCommitSettingsState implements PersistentStateComponent<AiC
     public static final class StateData {
         public String baseUrl = "https://api.deepseek.com";
         public String model = "deepseek-v4-flash";
-        public String language = "中文";
-        public String commitStyle = "Conventional Commit";
-        public int maxDiffCharacters = 120000;
         public boolean allowSendingChanges = false;
     }
 
@@ -43,18 +40,6 @@ public final class AiCommitSettingsState implements PersistentStateComponent<AiC
         }
         if (state.model == null || state.model.trim().isEmpty()) {
             state.model = "deepseek-v4-flash";
-        }
-        if (state.language == null || state.language.trim().isEmpty()) {
-            state.language = "中文";
-        }
-        if (state.commitStyle == null || state.commitStyle.trim().isEmpty()) {
-            state.commitStyle = "Conventional Commit";
-        }
-        if (state.maxDiffCharacters < 8000) {
-            state.maxDiffCharacters = 8000;
-        }
-        if (state.maxDiffCharacters > 500000) {
-            state.maxDiffCharacters = 500000;
         }
     }
 }

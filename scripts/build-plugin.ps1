@@ -10,7 +10,7 @@ $BuildDir = Join-Path $ProjectRoot "build"
 $ClassesDir = Join-Path $BuildDir "classes"
 $PackageDir = Join-Path $BuildDir "package\ai-commit-message-plugin"
 $JarPath = Join-Path $PackageDir "lib\ai-commit-message-plugin.jar"
-$ZipPath = Join-Path $OutputDir "ai-commit-message-plugin-0.3.2.zip"
+$ZipPath = Join-Path $OutputDir "ai-commit-message-plugin-0.3.4.zip"
 
 Remove-Item -LiteralPath $BuildDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $ClassesDir, (Split-Path -Parent $JarPath), $OutputDir | Out-Null
@@ -64,5 +64,8 @@ try {
 }
 
 Write-Host "Built plugin ZIP: $ZipPath"
+
+
+
 
 

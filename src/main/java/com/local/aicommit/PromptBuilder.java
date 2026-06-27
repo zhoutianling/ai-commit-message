@@ -12,14 +12,12 @@ final class PromptBuilder {
             + "Do not use Markdown fences. Do not explain your reasoning.";
     }
 
-    static String userPrompt(Project project, AiCommitSettingsState.StateData settings,
+    static String userPrompt(Project project, int fileCount,
                              List<String> codeDiffs, List<String> recentCommitMessages) {
-        int fileCount = codeDiffs.size();
-
         StringBuilder sb = new StringBuilder();
         sb.append("Project: ").append(project.getName()).append("\n");
-        sb.append("Language: ").append(settings.language).append("\n");
-        sb.append("Commit style: ").append(settings.commitStyle).append("\n");
+        sb.append("Language: \u4e2d\u6587\n");
+        sb.append("Commit style: Conventional Commit\n");
 
         if (recentCommitMessages != null && !recentCommitMessages.isEmpty()) {
             sb.append("\nRecent commit messages (for style reference):\n");
@@ -34,7 +32,7 @@ final class PromptBuilder {
         sb.append("\nRules:\n");
         sb.append("- For Conventional Commit, use exactly: type(scope): summary\n");
         sb.append("- Allowed types: feat, fix, refactor, perf, docs, test, build, ci, chore, style, revert.\n");
-        sb.append("- Use ").append(settings.language).append(" for the summary unless the diff clearly requires technical English.\n");
+        sb.append("- Use \u4e2d\u6587 for the summary unless the diff clearly requires technical English.\n");
         sb.append("- Do not include secrets or quote sensitive values.\n");
         sb.append("- Match the style and tone of recent commit messages shown above.\n");
         sb.append("- ").append(fileCount).append(" file(s) changed. ");

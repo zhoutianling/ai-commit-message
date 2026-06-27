@@ -2,21 +2,21 @@
     <id>io.github.zhoutianling.ai-commit-message</id>
     <name>AI Git Commit Writer</name>
     <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
-    <version>0.3.2</version>
-    <description>
+    <version>0.3.4</version>
+    <description><![CDATA[
         AI Git Commit Writer is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
         It adds a single action to the Commit panel and uses the user's own OpenAI-compatible API configuration,
-        with DeepSeek defaults. The plugin does not require login, does not create a tool window, and does not
-        make network requests until the user explicitly clicks an action.
-    </description>
+        with DeepSeek defaults. No login, no tool window, no background indexing.
+    ]]></description>
     <change-notes>
-        v0.3.2: Use COMMIT_WORKFLOW_HANDLER to collect changes (same approach as Qoder CN). Fixes unresponsive click.
+        v0.3.4: Fix unresponsive button (runtime dependency + error handling). Simplified settings (Base URL, API Key, Model only).
     </change-notes>
 
     <idea-version since-build="261" until-build="263.*"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
+    <depends>Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationConfigurable

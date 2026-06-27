@@ -19,9 +19,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
     private JBTextField baseUrlField;
     private JBPasswordField apiKeyField;
     private JBTextField modelField;
-    private JBTextField languageField;
-    private JBTextField styleField;
-    private JBTextField maxDiffField;
     private JCheckBox consentCheckBox;
     private JButton testButton;
     private JPanel panel;
@@ -34,13 +31,10 @@ public final class AiCommitSettingsConfigurable implements Configurable {
     @Override
     public @Nullable JComponent createComponent() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
-        baseUrlField = new JBTextField(state.baseUrl, 36);
+        baseUrlField = new JBTextField(state.baseUrl, 40);
         apiKeyField = new JBPasswordField();
         apiKeyField.setText(ApiKeyStore.getApiKey());
-        modelField = new JBTextField(state.model, 28);
-        languageField = new JBTextField(state.language, 16);
-        styleField = new JBTextField(state.commitStyle, 24);
-        maxDiffField = new JBTextField(Integer.toString(state.maxDiffCharacters), 12);
+        modelField = new JBTextField(state.model, 30);
         consentCheckBox = new JCheckBox("I understand that prompts and selected Git changes may be sent to the configured AI service.");
         consentCheckBox.setSelected(state.allowSendingChanges);
 
@@ -51,9 +45,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
             .addLabeledComponent(new JBLabel("Base URL"), baseUrlField)
             .addLabeledComponent(new JBLabel("API Key"), apiKeyField)
             .addLabeledComponent(new JBLabel("Model"), modelField)
-            .addLabeledComponent(new JBLabel("Language"), languageField)
-            .addLabeledComponent(new JBLabel("Commit Style"), styleField)
-            .addLabeledComponent(new JBLabel("Max Diff Characters"), maxDiffField)
             .addComponent(consentCheckBox)
             .addComponent(testButton)
             .addComponentFillVertically(new JPanel(), 0)
@@ -66,9 +57,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
         return !text(baseUrlField).equals(state.baseUrl)
             || !text(modelField).equals(state.model)
-            || !text(languageField).equals(state.language)
-            || !text(styleField).equals(state.commitStyle)
-            || !text(maxDiffField).equals(Integer.toString(state.maxDiffCharacters))
             || consentCheckBox.isSelected() != state.allowSendingChanges
             || !new String(apiKeyField.getPassword()).equals(ApiKeyStore.getApiKey());
     }
@@ -78,14 +66,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
         state.baseUrl = trimOrDefault(text(baseUrlField), "https://api.deepseek.com");
         state.model = trimOrDefault(text(modelField), "deepseek-v4-flash");
-        state.language = trimOrDefault(text(languageField), "中文");
-        state.commitStyle = trimOrDefault(text(styleField), "Conventional Commit");
-        try {
-            state.maxDiffCharacters = Integer.parseInt(text(maxDiffField).trim());
-        } catch (NumberFormatException ex) {
-            Messages.showWarningDialog("Max Diff Characters must be a number. Using 120000.", "AI Commit Message");
-            state.maxDiffCharacters = 120000;
-        }
         AiCommitSettingsState.getInstance().normalize();
         state.allowSendingChanges = consentCheckBox.isSelected();
         ApiKeyStore.setApiKey(new String(apiKeyField.getPassword()));
@@ -97,9 +77,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         baseUrlField.setText(state.baseUrl);
         apiKeyField.setText(ApiKeyStore.getApiKey());
         modelField.setText(state.model);
-        languageField.setText(state.language);
-        styleField.setText(state.commitStyle);
-        maxDiffField.setText(Integer.toString(state.maxDiffCharacters));
         consentCheckBox.setSelected(state.allowSendingChanges);
     }
 
@@ -108,9 +85,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         baseUrlField = null;
         apiKeyField = null;
         modelField = null;
-        languageField = null;
-        styleField = null;
-        maxDiffField = null;
         consentCheckBox = null;
         testButton = null;
         panel = null;
@@ -134,9 +108,6 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         AiCommitSettingsState.StateData testState = new AiCommitSettingsState.StateData();
         testState.baseUrl = trimOrDefault(text(baseUrlField), "https://api.deepseek.com");
         testState.model = trimOrDefault(text(modelField), "deepseek-v4-flash");
-        testState.language = trimOrDefault(text(languageField), "中文");
-        testState.commitStyle = trimOrDefault(text(styleField), "Conventional Commit");
-        testState.maxDiffCharacters = 8000;
 
         testButton.setEnabled(false);
         testButton.setText("Testing...");
