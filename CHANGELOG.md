@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Fix: use `COMMIT_WORKFLOW_HANDLER` to collect changes (same approach as Qoder CN), replacing unreliable `SELECTED_CHANGES`/`CHANGES` data keys. This fixes the "click does nothing" issue.
+- Add top-level `try/catch` in `actionPerformed` so any pre-background exception shows an error dialog instead of silently failing.
+- Catch exceptions from `handler.getUi()` calls gracefully.
+
 ## 0.3.1
 
 - Fix: catch RuntimeException from IdeaTextPatchBuilder to prevent silent failures when clicking the generate button.

@@ -21,22 +21,17 @@ final class DiffCollector {
 
     private DiffCollector() {}
 
-    static List<String> collectDiffs(Project project, Change[] changes) {
-        if (project == null || project.getBasePath() == null || changes == null || changes.length == 0) {
+    static List<String> collectDiffs(Project project, List<Change> changes) {
+        if (project == null || project.getBasePath() == null || changes == null || changes.isEmpty()) {
             return List.of();
         }
-
-        List<Change> changeList = new ArrayList<>();
-        for (Change c : changes) {
-            if (c != null) changeList.add(c);
-        }
-        if (changeList.isEmpty()) return List.of();
 
         List<String> result = new ArrayList<>();
         AtomicLong totalLength = new AtomicLong(0L);
         Path basePath = Path.of(project.getBasePath());
 
-        for (Change change : changeList) {
+        for (Change change : changes) {
+            if (change == null) continue;
             if (result.size() >= MAX_FILE || totalLength.get() >= MAX_PATCH_LEN) break;
 
             try {
@@ -76,7 +71,6 @@ final class DiffCollector {
                     result.add(diffContent);
                 }
             } catch (RuntimeException e) {
-                // IdeaTextPatchBuilder / UnifiedDiffWriter may throw for edge cases
                 tryNewFileFallback(change, result, totalLength);
             } catch (IOException | VcsException e) {
                 tryNewFileFallback(change, result, totalLength);
