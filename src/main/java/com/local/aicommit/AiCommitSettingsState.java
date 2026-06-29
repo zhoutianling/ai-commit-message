@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 public final class AiCommitSettingsState implements PersistentStateComponent<AiCommitSettingsState.StateData> {
     public static final class StateData {
         public String baseUrl = "https://api.deepseek.com";
+        public String apiKey = "";
         public String model = "deepseek-v4-flash";
         public boolean allowSendingChanges = false;
     }
@@ -37,6 +38,9 @@ public final class AiCommitSettingsState implements PersistentStateComponent<AiC
     public void normalize() {
         if (state.baseUrl == null || state.baseUrl.trim().isEmpty()) {
             state.baseUrl = "https://api.deepseek.com";
+        }
+        if (state.apiKey == null) {
+            state.apiKey = "";
         }
         if (state.model == null || state.model.trim().isEmpty()) {
             state.model = "deepseek-v4-flash";

@@ -47,8 +47,8 @@ public final class GenerateCommitMessageAction extends AnAction {
         settings.normalize();
         AiCommitSettingsState.StateData state = settings.getState();
 
-        String apiKey = ApiKeyStore.getApiKey();
-        if (apiKey.isBlank()) {
+        String apiKey = state.apiKey;
+        if (apiKey == null || apiKey.isBlank()) {
             SwingUtilities.invokeLater(() -> {
                 if (Messages.showYesNoDialog(project,
                         "API Key is not configured. Open settings now?",

@@ -33,7 +33,7 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
         baseUrlField = new JBTextField(state.baseUrl, 40);
         apiKeyField = new JBPasswordField();
-        apiKeyField.setText(ApiKeyStore.getApiKey());
+        apiKeyField.setText(state.apiKey);
         modelField = new JBTextField(state.model, 30);
         consentCheckBox = new JCheckBox("I understand that prompts and selected Git changes may be sent to the configured AI service.");
         consentCheckBox.setSelected(state.allowSendingChanges);
@@ -57,25 +57,25 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
         return !text(baseUrlField).equals(state.baseUrl)
             || !text(modelField).equals(state.model)
-            || consentCheckBox.isSelected() != state.allowSendingChanges
-            || !new String(apiKeyField.getPassword()).equals(ApiKeyStore.getApiKey());
+            || !new String(apiKeyField.getPassword()).equals(state.apiKey)
+            || consentCheckBox.isSelected() != state.allowSendingChanges;
     }
 
     @Override
     public void apply() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
         state.baseUrl = trimOrDefault(text(baseUrlField), "https://api.deepseek.com");
+        state.apiKey = new String(apiKeyField.getPassword());
         state.model = trimOrDefault(text(modelField), "deepseek-v4-flash");
         AiCommitSettingsState.getInstance().normalize();
         state.allowSendingChanges = consentCheckBox.isSelected();
-        ApiKeyStore.setApiKey(new String(apiKeyField.getPassword()));
     }
 
     @Override
     public void reset() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
         baseUrlField.setText(state.baseUrl);
-        apiKeyField.setText(ApiKeyStore.getApiKey());
+        apiKeyField.setText(state.apiKey);
         modelField.setText(state.model);
         consentCheckBox.setSelected(state.allowSendingChanges);
     }

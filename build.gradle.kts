@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.local"
-version = "0.3.5"
+version = "0.3.6"
 
 java {
     toolchain {
@@ -30,6 +30,7 @@ dependencies {
         bundledPlugin("Git4Idea")
     }
 }
+
 
 
 
