@@ -6,7 +6,7 @@ import com.intellij.ide.passwordSafe.PasswordSafe;
 
 final class ApiKeyStore {
     private static final CredentialAttributes ATTRIBUTES =
-        new CredentialAttributes("AI Commit Message Generator", "openai-compatible-api-key");
+        new CredentialAttributes("AiCommitMessage");
 
     private ApiKeyStore() {
     }
@@ -25,7 +25,7 @@ final class ApiKeyStore {
         if (value.isEmpty()) {
             PasswordSafe.getInstance().set(ATTRIBUTES, null);
         } else {
-            PasswordSafe.getInstance().set(ATTRIBUTES, new Credentials("api-key", value));
+            PasswordSafe.getInstance().setPassword(ATTRIBUTES, value);
         }
     }
 }

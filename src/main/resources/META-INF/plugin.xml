@@ -2,36 +2,25 @@
     <id>io.github.zhoutianling.ai-commit-message</id>
     <name>AI Git Commit Writer</name>
     <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
-    <version>0.3.4</version>
+    <version>0.3.5</version>
     <description><![CDATA[
         AI Git Commit Writer is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
         It adds a single action to the Commit panel and uses the user's own OpenAI-compatible API configuration,
         with DeepSeek defaults. No login, no tool window, no background indexing.
     ]]></description>
     <change-notes>
-        v0.3.4: Fix unresponsive button (runtime dependency + error handling). Simplified settings (Base URL, API Key, Model only).
+        v0.3.5: Fix API key not persisting across restarts.
     </change-notes>
-
     <idea-version since-build="261" until-build="263.*"/>
-
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
     <depends>Git4Idea</depends>
-
     <extensions defaultExtensionNs="com.intellij">
-        <applicationConfigurable
-            id="io.github.zhoutianling.ai-commit-message.settings"
-            displayName="AI Commit Message"
-            instance="com.local.aicommit.AiCommitSettingsConfigurable"/>
+        <applicationConfigurable id="io.github.zhoutianling.ai-commit-message.settings" displayName="AI Commit Message" instance="com.local.aicommit.AiCommitSettingsConfigurable"/>
         <applicationService serviceImplementation="com.local.aicommit.AiCommitSettingsState"/>
     </extensions>
-
     <actions>
-        <action
-            id="io.github.zhoutianling.ai-commit-message.GenerateCommitMessageAction"
-            class="com.local.aicommit.GenerateCommitMessageAction"
-            text="AI Generate Commit Message"
-            description="Generate a commit message from the selected Git changes">
+        <action id="io.github.zhoutianling.ai-commit-message.GenerateCommitMessageAction" class="com.local.aicommit.GenerateCommitMessageAction" text="AI Generate Commit Message" description="Generate a commit message from the selected Git changes">
             <add-to-group group-id="Vcs.MessageActionGroup" anchor="first"/>
         </action>
     </actions>
