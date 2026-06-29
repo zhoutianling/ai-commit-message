@@ -12,16 +12,21 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import java.awt.event.ItemEvent;
+import java.util.Arrays;
 
 public final class AiCommitSettingsConfigurable implements Configurable {
+    private JComboBox<String> providerCombo;
     private JBTextField baseUrlField;
     private JBPasswordField apiKeyField;
-    private JBTextField modelField;
+    private JComboBox<String> modelCombo;
     private JCheckBox consentCheckBox;
     private JButton testButton;
     private JPanel panel;
+    private boolean adjusting;
 
     @Override
     public String getDisplayName() {
@@ -31,10 +36,32 @@ public final class AiCommitSettingsConfigurable implements Configurable {
     @Override
     public @Nullable JComponent createComponent() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
+
+        String[] providers = AiCommitSettingsState.PRESETS.keySet().toArray(new String[0]);
+        providerCombo = new JComboBox<>(providers);
+        providerCombo.setSelectedItem(state.provider);
+        providerCombo.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED && !adjusting) {
+                String sel = (String) e.getItem();
+                AiCommitSettingsState inst = AiCommitSettingsState.getInstance();
+                inst.getState().provider = sel;
+                inst.applyProviderDefaults();
+                AiCommitSettingsState.StateData updated = inst.getState();
+                adjusting = true;
+                baseUrlField.setText(updated.baseUrl);
+                repopulateModelCombo(updated.provider, updated.model);
+                adjusting = false;
+            }
+        });
+
         baseUrlField = new JBTextField(state.baseUrl, 40);
+
         apiKeyField = new JBPasswordField();
         apiKeyField.setText(state.apiKey);
-        modelField = new JBTextField(state.model, 30);
+
+        modelCombo = new JComboBox<>();
+        repopulateModelCombo(state.provider, state.model);
+
         consentCheckBox = new JCheckBox("I understand that prompts and selected Git changes may be sent to the configured AI service.");
         consentCheckBox.setSelected(state.allowSendingChanges);
 
@@ -42,9 +69,10 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         testButton.addActionListener(e -> testConfiguration());
 
         panel = FormBuilder.createFormBuilder()
+            .addLabeledComponent(new JBLabel("Provider"), providerCombo)
             .addLabeledComponent(new JBLabel("Base URL"), baseUrlField)
             .addLabeledComponent(new JBLabel("API Key"), apiKeyField)
-            .addLabeledComponent(new JBLabel("Model"), modelField)
+            .addLabeledComponent(new JBLabel("Model"), modelCombo)
             .addComponent(consentCheckBox)
             .addComponent(testButton)
             .addComponentFillVertically(new JPanel(), 0)
@@ -52,21 +80,36 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         return panel;
     }
 
+    private void repopulateModelCombo(String provider, String selectModel) {
+        modelCombo.removeAllItems();
+        AiCommitSettingsState.Preset preset = AiCommitSettingsState.PRESETS.get(provider);
+        if (preset != null && preset.models().length > 0) {
+            for (String m : preset.models()) modelCombo.addItem(m);
+            modelCombo.setEditable(false);
+            modelCombo.setSelectedItem(selectModel);
+        } else {
+            modelCombo.setEditable(true);
+            modelCombo.setSelectedItem(selectModel);
+        }
+    }
+
     @Override
     public boolean isModified() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
-        return !text(baseUrlField).equals(state.baseUrl)
-            || !text(modelField).equals(state.model)
-            || !new String(apiKeyField.getPassword()).equals(state.apiKey)
+        return !nv(providerCombo).equals(nv(state.provider))
+            || !text(baseUrlField).equals(nv(state.baseUrl))
+            || !nv(modelCombo).equals(nv(state.model))
+            || !new String(apiKeyField.getPassword()).equals(nv(state.apiKey))
             || consentCheckBox.isSelected() != state.allowSendingChanges;
     }
 
     @Override
     public void apply() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
-        state.baseUrl = trimOrDefault(text(baseUrlField), "https://api.deepseek.com");
+        state.provider = nv(providerCombo);
+        state.baseUrl = text(baseUrlField).trim();
         state.apiKey = new String(apiKeyField.getPassword());
-        state.model = trimOrDefault(text(modelField), "deepseek-v4-flash");
+        state.model = nv(modelCombo);
         AiCommitSettingsState.getInstance().normalize();
         state.allowSendingChanges = consentCheckBox.isSelected();
     }
@@ -74,17 +117,19 @@ public final class AiCommitSettingsConfigurable implements Configurable {
     @Override
     public void reset() {
         AiCommitSettingsState.StateData state = AiCommitSettingsState.getInstance().getState();
+        providerCombo.setSelectedItem(state.provider);
         baseUrlField.setText(state.baseUrl);
         apiKeyField.setText(state.apiKey);
-        modelField.setText(state.model);
+        repopulateModelCombo(state.provider, state.model);
         consentCheckBox.setSelected(state.allowSendingChanges);
     }
 
     @Override
     public void disposeUIResources() {
+        providerCombo = null;
         baseUrlField = null;
         apiKeyField = null;
-        modelField = null;
+        modelCombo = null;
         consentCheckBox = null;
         testButton = null;
         panel = null;
@@ -97,58 +142,46 @@ public final class AiCommitSettingsConfigurable implements Configurable {
             return;
         }
         if (!consentCheckBox.isSelected()) {
-            Messages.showWarningDialog(
-                panel,
+            Messages.showWarningDialog(panel,
                 "Please confirm the data-transfer consent before testing the configured AI service.",
-                "AI Commit Message"
-            );
+                "AI Commit Message");
             return;
         }
+        String baseUrl = text(baseUrlField).trim();
+        String model = nv(modelCombo).trim();
 
         AiCommitSettingsState.StateData testState = new AiCommitSettingsState.StateData();
-        testState.baseUrl = trimOrDefault(text(baseUrlField), "https://api.deepseek.com");
-        testState.model = trimOrDefault(text(modelField), "deepseek-v4-flash");
+        testState.baseUrl = baseUrl.isEmpty() ? "https://api.deepseek.com" : baseUrl;
+        testState.model = model.isEmpty() ? "deepseek-v4-flash" : model;
 
         testButton.setEnabled(false);
         testButton.setText("Testing...");
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
             try {
                 String result = new OpenAiCompatibleClient().generate(
-                    testState,
-                    apiKey,
+                    testState, apiKey,
                     "You are a configuration health check. Reply with exactly OK.",
-                    "Reply with exactly OK."
-                );
+                    "Reply with exactly OK.");
                 invokeInSettingsDialog(() ->
-                    Messages.showInfoMessage(panel, "Configuration test succeeded: " + result, "AI Commit Message")
-                );
+                    Messages.showInfoMessage(panel, "Test OK: " + result, "AI Commit Message"));
             } catch (Exception ex) {
-                String message = ex.getMessage() == null ? ex.toString() : ex.getMessage();
+                String m = ex.getMessage() == null ? ex.toString() : ex.getMessage();
                 invokeInSettingsDialog(() ->
-                    Messages.showErrorDialog(panel, message, "AI Commit Message")
-                );
+                    Messages.showErrorDialog(panel, m, "AI Commit Message"));
             } finally {
                 invokeInSettingsDialog(() -> {
-                    if (testButton != null) {
-                        testButton.setEnabled(true);
-                        testButton.setText("Test Configuration");
-                    }
+                    if (testButton != null) { testButton.setEnabled(true); testButton.setText("Test Configuration"); }
                 });
             }
         });
     }
 
-    private void invokeInSettingsDialog(Runnable runnable) {
-        ModalityState modalityState = panel == null ? ModalityState.any() : ModalityState.stateForComponent(panel);
-        ApplicationManager.getApplication().invokeLater(runnable, modalityState);
+    private void invokeInSettingsDialog(Runnable r) {
+        ModalityState ms = panel == null ? ModalityState.any() : ModalityState.stateForComponent(panel);
+        ApplicationManager.getApplication().invokeLater(r, ms);
     }
 
-    private static String text(JBTextField field) {
-        return field == null ? "" : field.getText();
-    }
-
-    private static String trimOrDefault(String value, String defaultValue) {
-        String trimmed = value == null ? "" : value.trim();
-        return trimmed.isEmpty() ? defaultValue : trimmed;
-    }
+    private static String text(JBTextField f) { return f == null ? "" : f.getText(); }
+    private static String nv(JComboBox<String> c) { return c == null || c.getSelectedItem() == null ? "" : c.getSelectedItem().toString(); }
+    private static String nv(String s) { return s == null ? "" : s; }
 }

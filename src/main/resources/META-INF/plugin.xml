@@ -2,14 +2,14 @@
     <id>io.github.zhoutianling.ai-commit-message</id>
     <name>AI Git Commit Writer</name>
     <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
-    <version>0.3.6</version>
+    <version>0.4.0</version>
     <description><![CDATA[
-        AI Git Commit Writer is a lightweight Git commit message generator for JetBrains IDEs and Android Studio.
-        It adds a single action to the Commit panel and uses the user's own OpenAI-compatible API configuration,
-        with DeepSeek defaults. No login, no tool window, no background indexing.
+        AI Git Commit Writer — generate Git commit messages from selected changes.
+        Supports DeepSeek and OpenAI-compatible APIs with preset configurations.
+        Single click in the Commit panel. No login, no background indexing.
     ]]></description>
     <change-notes>
-        v0.3.6: Store API key in IDE settings (StateData) instead of PasswordSafe — fixes key loss across restarts.
+        v0.4.0: Provider dropdown (DeepSeek / OpenAI / Custom). Model dropdown with presets. API key persists across restarts.
     </change-notes>
     <idea-version since-build="261" until-build="263.*"/>
     <depends>com.intellij.modules.platform</depends>
