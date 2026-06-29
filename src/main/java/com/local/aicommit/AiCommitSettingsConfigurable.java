@@ -56,16 +56,12 @@ public final class AiCommitSettingsConfigurable implements Configurable {
         testButton.addActionListener(e -> testConfiguration());
         fetchButton.addActionListener(e -> fetchModels());
 
-        JPanel actionRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        actionRow.add(testButton);
-        actionRow.add(fetchButton);
-
         panel = FormBuilder.createFormBuilder()
             .addLabeledComponent(new JBLabel("Base URL"), baseUrlField)
             .addLabeledComponent(new JBLabel("API Key"), apiKeyField)
             .addLabeledComponent(new JBLabel("Model"), modelRow)
             .addComponent(consentCheckBox)
-            .addComponent(actionRow)
+            .addComponent(testButton)
             .addComponentFillVertically(new JPanel(), 0)
             .getPanel();
         return panel;
