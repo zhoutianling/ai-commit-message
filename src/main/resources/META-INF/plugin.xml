@@ -2,14 +2,13 @@
     <id>io.github.zhoutianling.ai-commit-message</id>
     <name>AI Git Commit Writer</name>
     <vendor email="1396628021@qq.com" url="https://github.com/zhoutianling">zhoutianling</vendor>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
     <description><![CDATA[
-        AI Git Commit Writer — generate Git commit messages from selected changes.
-        Supports DeepSeek and OpenAI-compatible APIs with preset configurations.
-        Single click in the Commit panel. No login, no background indexing.
+        AI Git Commit Writer — generate Git commit messages from selected changes using any OpenAI-compatible API.
+        Enter your Base URL and API Key, click Fetch Models, and select a model. One click in the Commit panel.
     ]]></description>
     <change-notes>
-        v0.4.0: Provider dropdown (DeepSeek / OpenAI / Custom). Model dropdown with presets. API key persists across restarts.
+        v0.4.1: No hardcoded providers. Enter Base URL + API Key, click Fetch Models to auto-populate the model dropdown. Clicking the commit button does nothing until a model is selected.
     </change-notes>
     <idea-version since-build="261" until-build="263.*"/>
     <depends>com.intellij.modules.platform</depends>

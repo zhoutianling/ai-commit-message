@@ -6,23 +6,24 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 final class OpenAiCompatibleClient {
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(20))
         .build();
 
-    String generate(AiCommitSettingsState.StateData settings, String apiKey, String systemPrompt, String userPrompt)
+    String generate(String baseUrl, String apiKey, String model, String systemPrompt, String userPrompt)
         throws IOException, InterruptedException {
-        String endpoint = normalizeBaseUrl(settings.baseUrl) + "/chat/completions";
+        String endpoint = normalizeBaseUrl(baseUrl) + "/chat/completions";
         String body = "{"
-            + "\"model\":\"" + json(settings.model) + "\","
+            + "\"model\":\"" + json(model) + "\","
             + "\"temperature\":0.2,"
             + "\"messages\":["
             + "{\"role\":\"system\",\"content\":\"" + json(systemPrompt) + "\"},"
             + "{\"role\":\"user\",\"content\":\"" + json(userPrompt) + "\"}"
-            + "]"
-            + "}";
+            + "]}";
 
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(endpoint))
@@ -42,6 +43,47 @@ final class OpenAiCompatibleClient {
             throw new IOException("AI response did not contain a message.");
         }
         return cleanup(content);
+    }
+
+    List<String> fetchModels(String baseUrl, String apiKey) throws IOException, InterruptedException {
+        String endpoint = normalizeBaseUrl(baseUrl) + "/models";
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(endpoint))
+            .timeout(Duration.ofSeconds(30))
+            .header("Authorization", "Bearer " + apiKey)
+            .GET()
+            .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200 && response.statusCode() != 201) {
+            throw new IOException("Failed to fetch models: HTTP " + response.statusCode());
+        }
+
+        String body = response.body();
+        List<String> models = extractModelIds(body);
+        if (models.isEmpty()) {
+            throw new IOException("No models found in response.");
+        }
+        return models;
+    }
+
+    private static List<String> extractModelIds(String json) {
+        List<String> ids = new ArrayList<>();
+        String key = "\"id\"";
+        int keyIndex = 0;
+        while ((keyIndex = json.indexOf(key, keyIndex)) >= 0) {
+            int colon = json.indexOf(':', keyIndex + key.length());
+            if (colon < 0) break;
+            int quote = nextNonWhitespace(json, colon + 1);
+            if (quote >= 0 && json.charAt(quote) == '"') {
+                try {
+                    ids.add(readJsonString(json, quote));
+                } catch (IOException ignored) {
+                }
+            }
+            keyIndex += key.length();
+        }
+        return ids;
     }
 
     private static String normalizeBaseUrl(String baseUrl) {
@@ -69,9 +111,7 @@ final class OpenAiCompatibleClient {
         int keyIndex = json.indexOf(key);
         while (keyIndex >= 0) {
             int colon = json.indexOf(':', keyIndex + key.length());
-            if (colon < 0) {
-                return null;
-            }
+            if (colon < 0) return null;
             int quote = nextNonWhitespace(json, colon + 1);
             if (quote >= 0 && json.charAt(quote) == '"') {
                 return readJsonString(json, quote);
@@ -83,9 +123,7 @@ final class OpenAiCompatibleClient {
 
     private static int nextNonWhitespace(String json, int start) {
         for (int i = start; i < json.length(); i++) {
-            if (!Character.isWhitespace(json.charAt(i))) {
-                return i;
-            }
+            if (!Character.isWhitespace(json.charAt(i))) return i;
         }
         return -1;
     }
@@ -97,35 +135,18 @@ final class OpenAiCompatibleClient {
             char ch = json.charAt(i);
             if (escaping) {
                 switch (ch) {
-                    case '"':
-                    case '\\':
-                    case '/':
-                        builder.append(ch);
-                        break;
-                    case 'b':
-                        builder.append('\b');
-                        break;
-                    case 'f':
-                        builder.append('\f');
-                        break;
-                    case 'n':
-                        builder.append('\n');
-                        break;
-                    case 'r':
-                        builder.append('\r');
-                        break;
-                    case 't':
-                        builder.append('\t');
-                        break;
+                    case '"': case '\\': case '/': builder.append(ch); break;
+                    case 'b': builder.append('\b'); break;
+                    case 'f': builder.append('\f'); break;
+                    case 'n': builder.append('\n'); break;
+                    case 'r': builder.append('\r'); break;
+                    case 't': builder.append('\t'); break;
                     case 'u':
-                        if (i + 4 >= json.length()) {
-                            throw new IOException("Invalid unicode escape in AI response.");
-                        }
+                        if (i + 4 >= json.length()) throw new IOException("Invalid unicode escape.");
                         builder.append((char) Integer.parseInt(json.substring(i + 1, i + 5), 16));
                         i += 4;
                         break;
-                    default:
-                        builder.append(ch);
+                    default: builder.append(ch);
                 }
                 escaping = false;
             } else if (ch == '\\') {
@@ -140,49 +161,28 @@ final class OpenAiCompatibleClient {
     }
 
     private static String json(String value) {
-        if (value == null) {
-            return "";
-        }
+        if (value == null) return "";
         StringBuilder builder = new StringBuilder(value.length() + 16);
         for (int i = 0; i < value.length(); i++) {
             char ch = value.charAt(i);
             switch (ch) {
-                case '"':
-                    builder.append("\\\"");
-                    break;
-                case '\\':
-                    builder.append("\\\\");
-                    break;
-                case '\b':
-                    builder.append("\\b");
-                    break;
-                case '\f':
-                    builder.append("\\f");
-                    break;
-                case '\n':
-                    builder.append("\\n");
-                    break;
-                case '\r':
-                    builder.append("\\r");
-                    break;
-                case '\t':
-                    builder.append("\\t");
-                    break;
+                case '"': builder.append("\\\""); break;
+                case '\\': builder.append("\\\\"); break;
+                case '\b': builder.append("\\b"); break;
+                case '\f': builder.append("\\f"); break;
+                case '\n': builder.append("\\n"); break;
+                case '\r': builder.append("\\r"); break;
+                case '\t': builder.append("\\t"); break;
                 default:
-                    if (ch < 0x20) {
-                        builder.append(String.format("\\u%04x", (int) ch));
-                    } else {
-                        builder.append(ch);
-                    }
+                    if (ch < 0x20) builder.append(String.format("\\u%04x", (int) ch));
+                    else builder.append(ch);
             }
         }
         return builder.toString();
     }
 
     private static String brief(String body) {
-        if (body == null) {
-            return "";
-        }
+        if (body == null) return "";
         String normalized = body.replace('\n', ' ').replace('\r', ' ').trim();
         return normalized.length() > 300 ? normalized.substring(0, 300) + "..." : normalized;
     }

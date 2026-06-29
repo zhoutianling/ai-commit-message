@@ -47,11 +47,22 @@ public final class GenerateCommitMessageAction extends AnAction {
         settings.normalize();
         AiCommitSettingsState.StateData state = settings.getState();
 
-        String apiKey = state.apiKey;
-        if (apiKey == null || apiKey.isBlank()) {
+        if (state.apiKey == null || state.apiKey.isBlank()) {
             SwingUtilities.invokeLater(() -> {
                 if (Messages.showYesNoDialog(project,
                         "API Key is not configured. Open settings now?",
+                        "AI Commit Message", "Open Settings", "Cancel", Messages.getQuestionIcon())
+                        == Messages.YES) {
+                    ShowSettingsUtil.getInstance().showSettingsDialog(project, "AI Commit Message");
+                }
+            });
+            return;
+        }
+
+        if (state.model == null || state.model.isBlank()) {
+            SwingUtilities.invokeLater(() -> {
+                if (Messages.showYesNoDialog(project,
+                        "No model selected. Open settings to fetch models?",
                         "AI Commit Message", "Open Settings", "Cancel", Messages.getQuestionIcon())
                         == Messages.YES) {
                     ShowSettingsUtil.getInstance().showSettingsDialog(project, "AI Commit Message");
@@ -72,15 +83,17 @@ public final class GenerateCommitMessageAction extends AnAction {
             return;
         }
 
-        final String finalApiKey = apiKey;
-        final List<Change> capturedChanges = changes;
+        final String fk = state.apiKey;
+        final String fm = state.model;
+        final String fb = state.baseUrl;
+        final List<Change> cap = changes;
 
         new Task.Backgroundable(project, "Generating AI commit message", true) {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
                 try {
                     indicator.setText("Collecting Git changes...");
-                    List<String> diffs = DiffCollector.collectDiffs(project, capturedChanges);
+                    List<String> diffs = DiffCollector.collectDiffs(project, cap);
                     if (diffs.isEmpty()) {
                         SwingUtilities.invokeLater(() ->
                             Messages.showInfoMessage(project, "No parsable Git changes were found.", "AI Commit Message"));
@@ -88,29 +101,25 @@ public final class GenerateCommitMessageAction extends AnAction {
                     }
 
                     indicator.setText("Reading recent commits...");
-                    List<String> recentMessages;
-                    try {
-                        recentMessages = GitHistoryCollector.collectRecentCommitMessages(project);
-                    } catch (Throwable e) {
-                        recentMessages = List.of();
-                    }
+                    List<String> hist;
+                    try { hist = GitHistoryCollector.collectRecentCommitMessages(project); }
+                    catch (Throwable e) { hist = List.of(); }
 
                     indicator.setText("Requesting AI commit message...");
-                    OpenAiCompatibleClient client = new OpenAiCompatibleClient();
-                    String generated = client.generate(
-                        state, finalApiKey,
+                    OpenAiCompatibleClient cli = new OpenAiCompatibleClient();
+                    String gen = cli.generate(fb, fk, fm,
                         PromptBuilder.systemPrompt(),
-                        PromptBuilder.userPrompt(project, capturedChanges.size(), diffs, recentMessages));
+                        PromptBuilder.userPrompt(project, cap.size(), diffs, hist));
 
                     SwingUtilities.invokeLater(() -> {
-                        if (generated != null && !generated.isBlank())
-                            commitMessage.setCommitMessage(generated.trim());
+                        if (gen != null && !gen.isBlank())
+                            commitMessage.setCommitMessage(gen.trim());
                     });
                 } catch (Throwable t) {
                     String msg = t.getMessage();
-                    final String display = msg != null ? msg : t.getClass().getSimpleName();
+                    final String d = msg != null ? msg : t.getClass().getSimpleName();
                     SwingUtilities.invokeLater(() ->
-                        Messages.showErrorDialog(project, display, "AI Commit Message"));
+                        Messages.showErrorDialog(project, d, "AI Commit Message"));
                 }
             }
         }.queue();
@@ -118,29 +127,24 @@ public final class GenerateCommitMessageAction extends AnAction {
 
     private static List<Change> collectChanges(AnActionEvent event) {
         List<Change> changes = new ArrayList<>();
-
-        Object handlerRaw = event.getDataContext().getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER);
-        if (handlerRaw instanceof AbstractCommitWorkflowHandler) {
+        Object hRaw = event.getDataContext().getData(VcsDataKeys.COMMIT_WORKFLOW_HANDLER);
+        if (hRaw instanceof AbstractCommitWorkflowHandler) {
             try {
-                AbstractCommitWorkflowHandler<?, ?> h = (AbstractCommitWorkflowHandler<?, ?>) handlerRaw;
+                AbstractCommitWorkflowHandler<?, ?> h = (AbstractCommitWorkflowHandler<?, ?>) hRaw;
                 List<Change> inc = h.getUi().getIncludedChanges();
                 if (inc != null && !inc.isEmpty()) changes.addAll(inc);
                 List<FilePath> uv = h.getUi().getIncludedUnversionedFiles();
                 if (uv != null) for (FilePath fp : uv) changes.add(new Change(null, new CurrentContentRevision(fp)));
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
-
         if (changes.isEmpty()) {
             Change[] sel = event.getData(VcsDataKeys.SELECTED_CHANGES);
             if (sel != null) for (Change c : sel) if (c != null) changes.add(c);
         }
-
         if (changes.isEmpty()) {
             Change[] all = event.getData(VcsDataKeys.CHANGES);
             if (all != null) for (Change c : all) if (c != null) changes.add(c);
         }
-
         return changes;
     }
 }
